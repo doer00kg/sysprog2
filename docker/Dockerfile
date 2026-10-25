@@ -1,12 +1,9 @@
 FROM ubuntu:22.04
-
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
+# gcc і libc6-dev додано для хостових тестів (make test), решта - з методички ЛР1
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    make \
-    gcc-arm-none-eabi \
-    binutils-arm-none-eabi \
-    libnewlib-arm-none-eabi \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
+ make gcc libc6-dev gcc-arm-none-eabi binutils-arm-none-eabi \
+ libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib \
+ python3 git ca-certificates srecord \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /workspace
