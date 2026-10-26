@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "author": "doer00kg",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-st-nucleo-c031c6", "id": "nucleo", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-mpu6050", "id": "imu", "top": -120, "left": 330, "attrs": {} },
+    { "type": "wokwi-potentiometer", "id": "pot", "top": 30, "left": 330, "attrs": {} },
+    { "type": "wokwi-servo", "id": "servo", "top": 150, "left": 330, "attrs": {} },
+    { "type": "wokwi-logic-analyzer", "id": "logic", "top": 300, "left": 330, "attrs": {} }
+  ],
+  "connections": [
+    [ "$serialMonitor:TX", "nucleo:PA3", "", [] ],
+    [ "$serialMonitor:RX", "nucleo:PA2", "", [] ],
+
+    [ "imu:VCC", "nucleo:3V3.2", "red", [] ],
+    [ "imu:GND", "nucleo:GND.9", "black", [] ],
+    [ "imu:SCL", "nucleo:PB8", "green", [] ],
+    [ "imu:SDA", "nucleo:PB9", "blue", [] ],
+
+    [ "pot:VCC", "nucleo:3V3.2", "red", [] ],
+    [ "pot:GND", "nucleo:GND.9", "black", [] ],
+    [ "pot:SIG", "nucleo:PA0", "orange", [] ],
+
+    [ "servo:GND", "nucleo:GND.9", "black", [] ],
+    [ "servo:PWM", "nucleo:PA6", "gold", [] ],
+
+    [ "logic:GND", "nucleo:GND.9", "black", [] ],
+    [ "logic:D0", "nucleo:PB8", "green", [] ],
+    [ "logic:D1", "nucleo:PB9", "blue", [] ],
+    [ "logic:D2", "nucleo:PA6", "gold", [] ],
+    [ "logic:D3", "nucleo:PA2", "purple", [] ]
+  ],
+  "dependencies": {}
+}
