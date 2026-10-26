@@ -1,6 +1,6 @@
 # Команди розробки для Windows (там немає make). Запуск з кореня проєкту:
 #   powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 build
-# Завдання: image | build | test | coverage | check | all
+# Завдання: image | patch | build | test | coverage | check | all
 param([Parameter(Position = 0)][string]$Task = "build")
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -13,10 +13,11 @@ function Run-In-Docker([string]$cmd) {
 
 switch ($Task) {
     "image"    { & docker build -t $img "$root/docker"; if ($LASTEXITCODE -ne 0) { exit 1 } }
+    "patch"    { Run-In-Docker "python3 scripts/patch_main.py" }
     "build"    { Run-In-Docker "make -C firmware all" }
     "test"     { Run-In-Docker "make -C tests test" }
     "coverage" { Run-In-Docker "make -C tests coverage" }
     "check"    { Run-In-Docker "python3 scripts/check_deps.py" }
     "all"      { Run-In-Docker "python3 scripts/check_deps.py && make -C tests test && make -C firmware all" }
-    default    { Write-Host "Невідоме завдання: $Task (image|build|test|coverage|check|all)"; exit 1 }
+    default    { Write-Host "Невідоме завдання: $Task (image|patch|build|test|coverage|check|all)"; exit 1 }
 }
