@@ -25,7 +25,8 @@ typedef struct {
     uint8_t       dev_addr;            /* на цій адресі "є" пристрій */
     uint8_t       regs[256];
     uint8_t       ptr;                 /* поточний вказівник регістра */
-    int           fail_at;             /* номер транзакції з помилкою, -1 = немає */
+    int           fail_at;             /* одна транзакція з цим номером дає помилку, -1 = немає */
+    int           fail_from;           /* усі транзакції з цього номера дають помилку, -1 = немає */
     fake_i2c_tx_t log[FAKE_I2C_LOG_MAX];
     int           log_count;
 } fake_i2c_t;

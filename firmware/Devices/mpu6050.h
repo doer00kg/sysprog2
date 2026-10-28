@@ -37,9 +37,26 @@ typedef enum {
     MPU6050_ERR_PARAM = -3  /**< порожній вказівник */
 } mpu6050_status_t;
 
+/** Кроки mpu6050_init (для діагностики: на якому кроці сталася помилка шини) */
+typedef enum {
+    MPU6050_STEP_NONE = 0,
+    MPU6050_STEP_WHO_AM_I = 1,
+    MPU6050_STEP_PWR_MGMT_1 = 2,
+    MPU6050_STEP_SMPLRT_DIV = 3,
+    MPU6050_STEP_CONFIG = 4,
+    MPU6050_STEP_GYRO_CONFIG = 5,
+    MPU6050_STEP_ACCEL_CONFIG = 6
+} mpu6050_step_t;
+
+/** Скільки разів повторюється транзакція після помилки шини. */
+#define MPU6050_BUS_RETRIES 1U
+
 typedef struct {
     const i2c_bus_t *bus;
     uint8_t addr;
+    uint8_t step;       /**< поточний крок ініціалізації */
+    uint8_t fail_step;  /**< крок, на якому ініціалізація остаточно не вдалась (0 = ні) */
+    uint8_t retries;    /**< скільки повторних спроб довелось зробити (лічильник) */
 } mpu6050_t;
 
 /** Сирі значення з регістрів 0x3B..0x48 */
@@ -63,10 +80,10 @@ typedef struct {
 mpu6050_status_t mpu6050_init(mpu6050_t *dev, const i2c_bus_t *bus, uint8_t addr);
 
 /** Прочитати WHO_AM_I (регістр 0x75). */
-mpu6050_status_t mpu6050_read_who_am_i(const mpu6050_t *dev, uint8_t *id);
+mpu6050_status_t mpu6050_read_who_am_i(mpu6050_t *dev, uint8_t *id);
 
 /** Прочитати 14 байтів з 0x3B одним читанням. */
-mpu6050_status_t mpu6050_read_raw(const mpu6050_t *dev, mpu6050_raw_t *raw);
+mpu6050_status_t mpu6050_read_raw(mpu6050_t *dev, mpu6050_raw_t *raw);
 
 /** Перерахувати сирі значення у g, градуси за секунду і градуси Цельсія. */
 void mpu6050_convert(const mpu6050_raw_t *raw, mpu6050_data_t *out);

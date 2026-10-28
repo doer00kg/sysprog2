@@ -20,7 +20,8 @@ static int fake_write(void *ctx, uint8_t addr7, const uint8_t *data, uint16_t le
     uint16_t i;
     int idx = log_tx(f, 0, addr7, len, len ? data[0] : 0);
 
-    if (idx == f->fail_at || addr7 != f->dev_addr) {
+    if (idx == f->fail_at || (f->fail_from >= 0 && idx >= f->fail_from) ||
+        addr7 != f->dev_addr) {
         return -1; /* NACK */
     }
     if (len == 0) {
@@ -39,7 +40,8 @@ static int fake_read(void *ctx, uint8_t addr7, uint8_t *data, uint16_t len)
     uint16_t i;
     int idx = log_tx(f, 1, addr7, len, 0);
 
-    if (idx == f->fail_at || addr7 != f->dev_addr) {
+    if (idx == f->fail_at || (f->fail_from >= 0 && idx >= f->fail_from) ||
+        addr7 != f->dev_addr) {
         return -1;
     }
     for (i = 0; i < len; i++) {
@@ -53,6 +55,7 @@ void fake_i2c_reset(fake_i2c_t *f, uint8_t dev_addr)
     memset(f, 0, sizeof *f);
     f->dev_addr = dev_addr;
     f->fail_at = -1;
+    f->fail_from = -1;
 }
 
 i2c_bus_t fake_i2c_bus(fake_i2c_t *f)
