@@ -44,3 +44,6 @@ void platform_servo_set_us(uint16_t us)
 
 int platform_button_pressed(void) { return fake_plat_button; }
 void platform_led_toggle(void) { fake_plat_led_toggles++; }
+int platform_button_level(void) { return fake_plat_button; }
+uint32_t platform_i2c_last_error(void) { return 0; }
+uint32_t platform_i2c_busy_recoveries(void) { return 0; }

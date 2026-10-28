@@ -11,14 +11,20 @@ extern I2C_HandleTypeDef hi2c1; /* створюється кодом CubeMX у C
 static ADC_HandleTypeDef hadc1;
 static TIM_HandleTypeDef htim3;
 static i2c_bus_t s_bus;
+static uint32_t s_i2c_last_error;
+static uint32_t s_busy_recoveries;
+static int s_button_idle_level;
 
 /* ---- I2C ------------------------------------------------------------- */
 
-/* Якщо після невдалої транзакції шина лишилась "зайнятою" (BUSY), HAL відмовляється
- * починати нову. Перезапуск периферії I2C1 (DeInit/Init) скидає її автомат. */
+/* Якщо прапорець BUSY лишився встановленим (після збою або, як спостерігається у Wokwi,
+ * навіть після успішної транзакції), HAL чекає на його скидання до тайм-ауту і повертає
+ * помилку. Перезапуск периферії I2C1 (DeInit/Init) скидає її автомат. Викликається і
+ * перед транзакцією, щоб не чекати марно, і після збою. */
 static void i2c_recover_if_busy(I2C_HandleTypeDef *h)
 {
     if (__HAL_I2C_GET_FLAG(h, I2C_FLAG_BUSY)) {
+        s_busy_recoveries++;
         (void)HAL_I2C_DeInit(h);
         (void)HAL_I2C_Init(h);
         (void)HAL_I2CEx_ConfigAnalogFilter(h, I2C_ANALOGFILTER_ENABLE);
@@ -29,9 +35,12 @@ static void i2c_recover_if_busy(I2C_HandleTypeDef *h)
 static int bus_write(void *ctx, uint8_t addr7, const uint8_t *data, uint16_t len)
 {
     I2C_HandleTypeDef *h = (I2C_HandleTypeDef *)ctx;
-    HAL_StatusTypeDef r = HAL_I2C_Master_Transmit(h, (uint16_t)(addr7 << 1),
+    HAL_StatusTypeDef r;
+    i2c_recover_if_busy(h);
+    r = HAL_I2C_Master_Transmit(h, (uint16_t)(addr7 << 1),
                                                   (uint8_t *)data, len, BOARD_I2C_TIMEOUT_MS);
     if (r != HAL_OK) {
+        s_i2c_last_error = HAL_I2C_GetError(h);
         i2c_recover_if_busy(h);
         return -1;
     }
@@ -41,9 +50,12 @@ static int bus_write(void *ctx, uint8_t addr7, const uint8_t *data, uint16_t len
 static int bus_read(void *ctx, uint8_t addr7, uint8_t *data, uint16_t len)
 {
     I2C_HandleTypeDef *h = (I2C_HandleTypeDef *)ctx;
-    HAL_StatusTypeDef r = HAL_I2C_Master_Receive(h, (uint16_t)(addr7 << 1),
+    HAL_StatusTypeDef r;
+    i2c_recover_if_busy(h);
+    r = HAL_I2C_Master_Receive(h, (uint16_t)(addr7 << 1),
                                                  data, len, BOARD_I2C_TIMEOUT_MS);
     if (r != HAL_OK) {
+        s_i2c_last_error = HAL_I2C_GetError(h);
         i2c_recover_if_busy(h);
         return -1;
     }
@@ -167,9 +179,25 @@ void platform_servo_set_us(uint16_t us)
 
 /* ---- Кнопка, LED, час ------------------------------------------------- */
 
+int platform_button_level(void)
+{
+    return HAL_GPIO_ReadPin(User_Button_GPIO_Port, User_Button_Pin) == GPIO_PIN_SET;
+}
+
 int platform_button_pressed(void)
 {
-    return HAL_GPIO_ReadPin(User_Button_GPIO_Port, User_Button_Pin) == BOARD_BUTTON_ACTIVE_LEVEL;
+    /* Натиснуто = рівень відрізняється від того, що був у спокої при старті */
+    return platform_button_level() != s_button_idle_level;
+}
+
+uint32_t platform_i2c_last_error(void)
+{
+    return s_i2c_last_error;
+}
+
+uint32_t platform_i2c_busy_recoveries(void)
+{
+    return s_busy_recoveries;
 }
 
 void platform_led_toggle(void)
@@ -187,11 +215,14 @@ int platform_init(void)
     GPIO_InitTypeDef gpio = {0};
     int err = 0;
 
-    /* Кнопка B1 читається опитуванням (антидребезг у шарі App), тому вхід із pull-up */
+    /* Кнопка B1 читається опитуванням (антидребезг у шарі App). Без внутрішньої підтяжки
+     * Кнопка підключається між PC13 і GND (у Wokwi - компонент wokwi-pushbutton), тому
+     * потрібна внутрішня підтяжка; полярність все одно визначаємо за станом у спокої. */
     gpio.Pin = User_Button_Pin;
     gpio.Mode = GPIO_MODE_INPUT;
     gpio.Pull = GPIO_PULLUP;
     HAL_GPIO_Init(User_Button_GPIO_Port, &gpio);
+    s_button_idle_level = platform_button_level();
 
     if (adc_init() != 0) {
         err |= PLATFORM_ERR_ADC;

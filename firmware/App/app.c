@@ -33,6 +33,7 @@ static float          s_gain = 1.0f;
 static uint16_t       s_servo_us = SERVO_NEUTRAL_US;
 static uint32_t       s_last_sample, s_last_adc, s_last_log, s_last_led;
 static uint32_t       s_read_errors;
+static uint32_t       s_samples;
 static int            s_pass, s_fail;
 
 static void report(int ok)
@@ -63,6 +64,7 @@ int app_init(void)
     s_sensor_ok = 0;
     s_hold = 0;
     s_read_errors = 0;
+    s_samples = 0;
 
     printf("\r\n[SELFTEST] begin\r\n");
 
@@ -73,22 +75,11 @@ int app_init(void)
     printf("[SELFTEST] platform adc_pwm_init err=0x%02X ", plat_err);
     report(plat_err == 0);
 
-    /* Сканування шини: 7-бітні адреси 0x08 ... 0x77 */
-    printf("[SELFTEST] i2c_scan found=");
-    for (addr = 0x08; addr < 0x78; addr++) {
-        if (platform_i2c_probe(addr)) {
-            printf("0x%02X,", addr);
-            if (addr == MPU6050_ADDR_AD0_LOW) {
-                found = 1;
-            }
-        }
-    }
-    printf(" ");
-    report(found);
-
     st = mpu6050_init(&s_imu, platform_i2c_bus(), MPU6050_ADDR_AD0_LOW);
     (void)mpu6050_read_who_am_i(&s_imu, &id);
-    printf("[SELFTEST] mpu6050 status=%d who_am_i=0x%02X ", (int)st, id);
+    printf("[SELFTEST] mpu6050 status=%d who_am_i=0x%02X fail_step=%u retries=%u busy_rec=%lu i2c_err=0x%02lX ",
+           (int)st, id, s_imu.fail_step, s_imu.retries, (unsigned long)platform_i2c_busy_recoveries(),
+           (unsigned long)platform_i2c_last_error());
     s_sensor_ok = (st == MPU6050_OK);
     report(s_sensor_ok);
 
@@ -108,6 +99,21 @@ int app_init(void)
         }
     }
 
+    /* Сканування шини після ініціалізації датчика: 7-бітні адреси 0x08 ... 0x77.
+     * (Перед ініціалізацією воно залишало I2C-автомат у Wokwi у стані, при якому
+     * перша транзакція падала, див. docs, проблема з порядком ініціалізації.) */
+    printf("[SELFTEST] i2c_scan found=");
+    for (addr = 0x08; addr < 0x78; addr++) {
+        if (platform_i2c_probe(addr)) {
+            printf("0x%02X,", addr);
+            if (addr == MPU6050_ADDR_AD0_LOW) {
+                found = 1;
+            }
+        }
+    }
+    printf(" ");
+    report(found);
+
     {
         uint16_t adc = platform_adc_read();
         printf("[SELFTEST] adc raw=%u gain_x100=%ld ", adc, lroundf(motion_gain_from_adc(adc) * 100.0f));
@@ -118,7 +124,7 @@ int app_init(void)
     printf("[SELFTEST] servo pulse_us=%u ", SERVO_NEUTRAL_US);
     report(1);
 
-    printf("[SELFTEST] button pressed=%d ", platform_button_pressed());
+    printf("[SELFTEST] button idle_level=%d pressed=%d ", platform_button_level(), platform_button_pressed());
     report(1);
 
     printf("[SELFTEST] summary pass=%d fail=%d\r\n", s_pass, s_fail);
@@ -147,6 +153,7 @@ static void sample_imu(uint32_t now)
         s_read_errors++;
         return;
     }
+    s_samples++;
     mpu6050_convert(&raw, &d);
     motion_filter_update(&s_filter, d.ax_g, d.ay_g, d.az_g, d.gx_dps, d.gy_dps, dt);
 
@@ -162,7 +169,8 @@ void app_step(void)
 
     if (debounce_update(&s_button, platform_button_pressed(), now)) {
         s_hold = !s_hold;
-        printf("[EVENT] t_ms=%lu mode=%s\r\n", (unsigned long)now, s_hold ? "HOLD" : "LIVE");
+        printf("[EVENT] t_ms=%lu button_level=%d mode=%s\r\n", (unsigned long)now,
+               platform_button_level(), s_hold ? "HOLD" : "LIVE");
     }
     if (now - s_last_sample >= SAMPLE_PERIOD_MS) {
         sample_imu(now);
@@ -177,9 +185,12 @@ void app_step(void)
     }
     if (now - s_last_log >= LOG_PERIOD_MS) {
         s_last_log = now;
-        printf("[LOG] t_ms=%lu pitch_cdeg=%ld roll_cdeg=%ld gain_x100=%ld servo_us=%u mode=%s read_err=%lu\r\n",
+        printf("[LOG] t_ms=%lu pitch_cdeg=%ld roll_cdeg=%ld gain_x100=%ld servo_us=%u mode=%s btn_level=%d read_err=%lu samples=%lu retries=%u busy_rec=%lu i2c_err=0x%02lX\r\n",
                (unsigned long)now, lroundf(s_filter.pitch_deg * 100.0f),
                lroundf(s_filter.roll_deg * 100.0f), lroundf(s_gain * 100.0f), s_servo_us,
-               s_hold ? "HOLD" : "LIVE", (unsigned long)s_read_errors);
+               s_hold ? "HOLD" : "LIVE", platform_button_level(), (unsigned long)s_read_errors,
+               (unsigned long)s_samples, s_imu.retries, (unsigned long)platform_i2c_busy_recoveries(),
+               (unsigned long)platform_i2c_last_error());
+        s_samples = 0;
     }
 }
