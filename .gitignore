@@ -4,3 +4,8 @@ wokwi.vcd
 *.swp
 
 tests/build/
+
+# Записи аналізатора з довгих запусків і тимчасові файли
+/wokwi.vcd
+docs/captures/wokwi.vcd
+tests/build/
