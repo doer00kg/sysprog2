@@ -6,8 +6,8 @@
  *  Функція        Пін    AF    Периферія / сигнал     Роз'єм Arduino
  *  I2C SCL        PB8    AF6   I2C1_SCL               D15
  *  I2C SDA        PB9    AF6   I2C1_SDA               D14
- *  UART TX (VCP)  PA2    AF1   USART2_TX              D1
- *  UART RX (VCP)  PA3    AF1   USART2_RX              D0
+ *  UART TX (VCP)  PA2    AF1   USART2_TX              - (morpho, ST-LINK)
+ *  UART RX (VCP)  PA3    AF1   USART2_RX              - (morpho, ST-LINK)
  *  Потенціометр   PA0    -     ADC1_IN0               A0
  *  Серво (PWM)    PA6    AF1   TIM3_CH1               D12
  *  Кнопка B1      PC13   -     GPIO (вхід, без pull)  -   (полярність - автоматично)
