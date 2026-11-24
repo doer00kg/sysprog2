@@ -150,9 +150,13 @@ static void sample_imu(uint32_t now)
         return; /* FR-02: при помилці датчика серво лишається в нейтралі */
     }
     if (mpu6050_read_raw(&s_imu, &raw) != MPU6050_OK) {
-        s_read_errors++;
-        return;
-    }
+    s_read_errors++;
+    s_servo_us = SERVO_NEUTRAL_US;
+    platform_servo_set_us(s_servo_us);
+    s_servo.valid = 0;
+    motion_filter_init(&s_filter, FILTER_ALPHA);
+    return;
+}
     s_samples++;
     mpu6050_convert(&raw, &d);
     motion_filter_update(&s_filter, d.ax_g, d.ay_g, d.az_g, d.gx_dps, d.gy_dps, dt);
