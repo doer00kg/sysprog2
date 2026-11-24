@@ -100,10 +100,17 @@ static void test_read_error_is_counted_not_fatal(void)
 {
     setup();
     CHECK_EQ(app_init(), 0);
-    imu.dev_addr = 0x70;                    /* чип "зник" з шини під час роботи */
-    fake_plat_servo_calls = 0;
-    run_steps(20);
-    CHECK_EQ(fake_plat_servo_calls, 0);
+    set_accel_raw(-8192, 0, 14189);
+    run_steps(40);
+    CHECK_NEAR(fake_plat_servo_us, 1667, 4);
+
+    imu.dev_addr = 0x70;
+    run_steps(1);
+    CHECK_EQ(fake_plat_servo_us, 1500);
+
+    imu.dev_addr = MPU6050_ADDR_AD0_LOW;
+    run_steps(1);
+    CHECK_NEAR(fake_plat_servo_us, 1667, 4);
 }
 
 int main(void)

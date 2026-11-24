@@ -10,7 +10,7 @@
  *  UART RX (VCP)  PA3    AF1   USART2_RX              - (morpho, ST-LINK)
  *  Потенціометр   PA0    -     ADC1_IN0               A0
  *  Серво (PWM)    PA6    AF1   TIM3_CH1               D12
- *  Кнопка B1      PC13   -     GPIO (вхід, без pull)  -   (полярність - автоматично)
+ *  Кнопка B1      PC13   -     GPIO (вхід, pull-up)  -   (полярність - автоматично)
  *  LED LD4        PA5    -     GPIO (вихід)           D13
  */
 #ifndef BOARD_H

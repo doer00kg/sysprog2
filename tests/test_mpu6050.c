@@ -109,8 +109,7 @@ static void test_read_who_am_i(void)
 
 /* Тестовий вектор: 14 байтів у порядку регістрів 0x3B..0x48.
  * ax=0x0000, ay=0x0000, az=0x4000 (=16384, тобто 1 g), temp=0x0000,
- * gx=0x0083 (=131, тобто 1 dps), gy=0xFF7D (=-131), gz=0x0000.
- * Пізніше сюди додається вектор із запису логічного аналізатора. */
+ * gx=0x0083 (=131, тобто 1 dps), gy=0xFF7D (=-131), gz=0x0000.*/
 static const uint8_t VECTOR_REST[14] = {
     0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00,
     0x00, 0x83, 0xFF, 0x7D, 0x00, 0x00
@@ -196,6 +195,35 @@ static void test_convert_temperature_formula(void)
     CHECK_NEAR(d.temp_c, 35.0, 0.01);    /* -521/340 + 36.53 */
 }
 
+/* Дані з i2c-uart-boot.vcd, читання 0x3B на 549,850 мс. */
+static void test_read_raw_from_capture(void)
+{
+    const uint8_t data[14] = {
+        0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0xEF, 0x5C,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+    mpu6050_raw_t raw;
+    mpu6050_data_t d;
+
+    setup();
+    dev.bus = &bus;
+    dev.addr = MPU6050_ADDR_AD0_LOW;
+    memcpy(&fake.regs[MPU6050_REG_ACCEL_XOUT_H], data, sizeof data);
+
+    CHECK_EQ(mpu6050_read_raw(&dev, &raw), MPU6050_OK);
+    CHECK_EQ(raw.ax, 0);
+    CHECK_EQ(raw.ay, 0);
+    CHECK_EQ(raw.az, 16384);
+    CHECK_EQ(raw.temp, -4260);
+    CHECK_EQ(raw.gx, 0);
+    CHECK_EQ(raw.gy, 0);
+    CHECK_EQ(raw.gz, 0);
+
+    mpu6050_convert(&raw, &d);
+    CHECK_NEAR(d.az_g, 1.0, 0.001);
+    CHECK_NEAR(d.temp_c, 24.0, 0.001);
+}
+
 int main(void)
 {
     RUN(test_init_ok_and_sequence);
@@ -211,5 +239,6 @@ int main(void)
     RUN(test_read_raw_transient_error_is_retried);
     RUN(test_convert_rest_is_one_g);
     RUN(test_convert_temperature_formula);
+    RUN(test_read_raw_from_capture);
     return TEST_REPORT();
 }
